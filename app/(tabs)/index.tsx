@@ -1,80 +1,210 @@
-import { Image } from "expo-image";
-import { Platform, StyleSheet } from "react-native";
-
-import { HelloWave } from "@/components/HelloWave";
-import ParallaxScrollView from "@/components/ParallaxScrollView";
-import { ThemedText } from "@/components/ThemedText";
-import { ThemedView } from "@/components/ThemedView";
+import React, { useState, useCallback } from 'react';
+import {
+  View,
+  StyleSheet,
+  ScrollView,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+} from 'react-native';
+import { StatusBar } from 'expo-status-bar';
+import { ThemedText } from '@/components/ThemedText';
+import { ThemedView } from '@/components/ThemedView';
+import { MusicGenerationForm } from '@/components/MusicGenerationForm';
+import { LoadingIndicator } from '@/components/LoadingIndicator';
+import { GeneratedTrack } from '@/components/GeneratedTrack';
+import { RecentGenerations } from '@/components/RecentGenerations';
+import { useThemeColor } from '@/hooks/useThemeColor';
+import useSunoGeneration from '@/hooks/useSunoGeneration';
+import { SunoTrack, GenerationOptions } from '@/types/suno';
 
 export default function HomeScreen() {
-  return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: "#A1CEDC", dark: "#1D3D47" }}
-      headerImage={
-        <Image
-          source={require("@/assets/images/partial-react-logo.png")}
-          style={styles.reactLogo}
+  const [currentPlayingTrack, setCurrentPlayingTrack] = useState<SunoTrack | null>(null);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+  const {
+    status,
+    isGenerating,
+    progress,
+    tracks,
+    error,
+    generateMusic,
+    clearError,
+  } = useSunoGeneration();
+
+  // Theme colors
+  const backgroundColor = useThemeColor({}, 'background');
+  const primaryColor = useThemeColor({}, 'primary');
+  const errorColor = useThemeColor({}, 'error');
+
+  const handleGenerate = useCallback(async (prompt: string, options: Partial<GenerationOptions>) => {
+    try {
+      clearError();
+      await generateMusic(prompt, options);
+      // Trigger refresh of recent generations when generation completes
+      setRefreshTrigger(prev => prev + 1);
+    } catch (error) {
+      console.error('Generation failed:', error);
+      Alert.alert(
+        'Generation Failed',
+        error instanceof Error ? error.message : 'An unknown error occurred'
+      );
+    }
+  }, [generateMusic, clearError]);
+
+  const handleTrackPlay = useCallback((track: SunoTrack) => {
+    if (track.status !== 'complete' || !track.audio_url) {
+      Alert.alert('Cannot Play', 'This track is not ready for playback yet.');
+      return;
+    }
+
+    // For now, just toggle the playing state (actual audio playback would be implemented separately)
+    setCurrentPlayingTrack(prev => 
+      prev?.id === track.id ? null : track
+    );
+
+    // In a real app, you would integrate with an audio player here
+    console.log('Playing track:', track.title, track.audio_url);
+  }, []);
+
+  const renderGenerationStatus = () => {
+    if (error) {
+      return (
+        <ThemedView style={[styles.statusContainer, { backgroundColor: errorColor + '20' }]}>
+          <ThemedText style={[styles.errorText, { color: errorColor }]}>
+            Error: {error}
+          </ThemedText>
+        </ThemedView>
+      );
+    }
+
+    if (isGenerating) {
+      return (
+        <LoadingIndicator
+          progress={progress}
+          status={status === 'generating' ? 'Generating music...' : 'Processing...'}
+          showWaveform={true}
+          size="medium"
         />
-      }
+      );
+    }
+
+    return null;
+  };
+
+  const renderGeneratedTracks = () => {
+    if (tracks.length === 0 || isGenerating) return null;
+
+    return (
+      <View style={styles.generatedSection}>
+        <ThemedText type="subtitle" style={styles.sectionTitle}>
+          Generated Tracks
+        </ThemedText>
+        {tracks.map((track) => (
+          <GeneratedTrack
+            key={track.id}
+            track={track}
+            onPlay={handleTrackPlay}
+            isPlaying={currentPlayingTrack?.id === track.id}
+            showActions={true}
+            compact={false}
+          />
+        ))}
+      </View>
+    );
+  };
+
+  return (
+    <KeyboardAvoidingView 
+      style={[styles.container, { backgroundColor }]}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Replit + Expo</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit{" "}
-          <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText>{" "}
-          to see changes. Press{" "}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: "cmd + d",
-              android: "cmd + m",
-              web: "F12",
-            })}
-          </ThemedText>{" "}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">
-            npm run reset-project
-          </ThemedText>{" "}
-          to get a fresh <ThemedText type="defaultSemiBold">app</ThemedText>{" "}
-          directory. This will move the current{" "}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{" "}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+      <StatusBar style="auto" />
+      
+      <ScrollView 
+        style={styles.scrollView}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+        {/* Header */}
+        <View style={styles.header}>
+          <ThemedText type="title" style={[styles.headerTitle, { color: primaryColor }]}>
+            AI Music Studio
+          </ThemedText>
+          <ThemedText style={[styles.headerSubtitle, { color: primaryColor + 'aa' }]}>
+            Create amazing songs with artificial intelligence
+          </ThemedText>
+        </View>
+
+        {/* Generation Form */}
+        <MusicGenerationForm 
+          onGenerate={handleGenerate}
+          isGenerating={isGenerating}
+        />
+
+        {/* Generation Status */}
+        {renderGenerationStatus()}
+
+        {/* Generated Tracks */}
+        {renderGeneratedTracks()}
+
+        {/* Recent Generations */}
+        <RecentGenerations
+          onTrackPlay={handleTrackPlay}
+          currentPlayingTrack={currentPlayingTrack}
+          refreshTrigger={refreshTrigger}
+        />
+
+        {/* Bottom Padding */}
+        <View style={styles.bottomPadding} />
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
+  container: {
+    flex: 1,
   },
-  stepContainer: {
-    gap: 8,
+  scrollView: {
+    flex: 1,
+  },
+  header: {
+    alignItems: 'center',
+    paddingTop: 60,
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+  },
+  headerTitle: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    textAlign: 'center',
     marginBottom: 8,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: "absolute",
+  headerSubtitle: {
+    fontSize: 16,
+    textAlign: 'center',
+    fontStyle: 'italic',
+  },
+  statusContainer: {
+    margin: 16,
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  errorText: {
+    fontSize: 14,
+    textAlign: 'center',
+    fontWeight: '500',
+  },
+  generatedSection: {
+    margin: 16,
+  },
+  sectionTitle: {
+    marginBottom: 16,
+    paddingHorizontal: 4,
+  },
+  bottomPadding: {
+    height: 100,
   },
 });

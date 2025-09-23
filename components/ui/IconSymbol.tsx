@@ -18,7 +18,26 @@ const MAPPING = {
   'paperplane.fill': 'send',
   'chevron.left.forwardslash.chevron.right': 'code',
   'chevron.right': 'chevron-right',
-} as IconMapping;
+  // Music-themed icons
+  'play.fill': 'play-arrow',
+  'pause.fill': 'pause',
+  'stop.fill': 'stop',
+  'music.note': 'music-note',
+  'music.note.list': 'queue-music',
+  'waveform': 'graphic-eq',
+  'speaker.wave.2.fill': 'volume-up',
+  'speaker.slash.fill': 'volume-off',
+  'heart.fill': 'favorite',
+  'heart': 'favorite-border',
+  'square.and.arrow.up': 'share',
+  'arrow.down.to.line': 'download',
+  'plus': 'add',
+  'minus': 'remove',
+  'checkmark': 'check',
+  'xmark': 'close',
+  'arrow.clockwise': 'refresh',
+  'trash': 'delete',
+} as Partial<IconMapping>;
 
 /**
  * An icon component that uses native SF Symbols on iOS, and Material Icons on Android and web.
