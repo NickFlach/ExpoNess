@@ -9,16 +9,8 @@ localPort = 5000
 externalPort = 80
 
 [[ports]]
-localPort = 8081
-externalPort = 80
-
-[[ports]]
-localPort = 8082
+localPort = 35073
 externalPort = 3000
-
-[[ports]]
-localPort = 36527
-externalPort = 3001
 
 [[ports]]
 localPort = 36793
@@ -82,7 +74,7 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "npx expo start --port 5000 --web"
+args = "npx expo start --web --port 5000"
 waitForPort = 5000
 
 [workflows.workflow.metadata]
